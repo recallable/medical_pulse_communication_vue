@@ -1,0 +1,26 @@
+{
+  "files": [],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.app.json",
+      "composite": true
+    },
+    {
+      "path": "./tsconfig.node.json",
+      "composite": true
+    }
+  ],
+}
