@@ -22,6 +22,11 @@ const router = createRouter({
       component: () => import('@/views/login/Home.vue'),
     },
     {
+      path: '/app/ai/chat',
+      name: 'AiChat',
+      component: () => import('@/views/app/ai/AiChat.vue')
+    },
+    {
       path: '/app',
       component: () => import('@/views/app/layout/AppLayout.vue'),
       redirect: '/app/mine',

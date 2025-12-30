@@ -179,7 +179,19 @@ class WebSocketService {
      */
     public send(data: any) {
         if (this.ws && this.status === WsStatus.OPEN) {
-            const payload = typeof data === 'string' ? data : JSON.stringify(data);
+            // 自动注入 token 到消息体中 (如果 data 是对象)
+            let payload = '';
+            if (typeof data === 'object' && data !== null) {
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                const dataWithToken = { ...data };
+                if (token) {
+                    dataWithToken.token = token;
+                }
+                payload = JSON.stringify(dataWithToken);
+            } else {
+                payload = String(data);
+            }
+            
             this.ws.send(payload);
         } else {
             console.warn('WebSocket 未连接，无法发送消息:', data);
