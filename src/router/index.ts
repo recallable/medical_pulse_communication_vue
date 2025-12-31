@@ -76,6 +76,11 @@ const router = createRouter({
           name: 'KnowledgeBank',
           component: () => import('@/views/app/knowledge/KnowledgeBank.vue')
         },
+        {
+          path: 'knowledge/list',
+          name: 'CourseList',
+          component: () => import('@/views/app/knowledge/CourseList.vue')
+        },
       ]
     },
     {

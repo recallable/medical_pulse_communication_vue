@@ -1,26 +1,17 @@
 <template>
   <div class="knowledge-bank">
     <!-- 顶部导航栏 -->
-    <van-nav-bar
-      title="知识银行"
-      left-arrow
-      @click-left="onClickLeft"
-    >
+    <van-nav-bar title="知识银行" left-arrow @click-left="onClickLeft">
       <template #right>
         <van-icon name="manager-o" size="18" color="#333" />
       </template>
     </van-nav-bar>
 
     <!-- 搜索框 -->
-    <van-search
-      v-model="searchText"
-      shape="round"
-      placeholder="搜索您感兴趣的课程"
-      class="custom-search"
-    />
+    <van-search v-model="searchText" shape="round" placeholder="搜索您感兴趣的课程" class="custom-search" />
 
     <!-- 标签页 -->
-    <van-tabs v-model:active="activeTab" sticky>
+    <van-tabs v-model:active="activeTab" sticky @change="onTabChange">
       <van-tab title="推荐">
         <div class="tab-content">
           <!-- Banner -->
@@ -56,7 +47,7 @@
           </van-grid>
 
           <!-- 为您推荐 -->
-          <div class="section">
+          <div class="section" v-if="recommendItems.length > 0">
             <div class="section-header">
               <span class="section-title">为您推荐</span>
               <span class="section-more">更多 <van-icon name="arrow" /></span>
@@ -79,7 +70,7 @@
           <div class="section">
             <div class="section-header">
               <span class="section-title">新品专区</span>
-              <span class="section-more">更多 <van-icon name="arrow" /></span>
+              <span class="section-more" @click="goToCourseList">更多 <van-icon name="arrow" /></span>
             </div>
             <div class="grid-layout">
               <div class="course-card-lg" v-for="item in newItems" :key="item.id">
@@ -118,22 +109,43 @@
           <div class="footer-text">已显示全部内容</div>
         </div>
       </van-tab>
-      <van-tab title="儿科">
-        <div class="empty-placeholder">儿科内容建设中...</div>
+      <van-tab v-for="dept in departments" :key="dept" :title="dept">
+        <div class="dept-content">
+          <van-list v-model:loading="listLoading" :finished="listFinished" finished-text="没有更多了"
+            :immediate-check="false" @load="onDeptLoad">
+            <van-loading v-if="deptLoading" size="24px" vertical class="loading-wrapper">加载中...</van-loading>
+            <div v-else-if="deptCourses.length === 0 && !listLoading" class="empty-placeholder">暂无{{ dept }}相关课程</div>
+            <div v-else class="grid-layout">
+              <div class="course-card-lg" v-for="item in deptCourses" :key="item.id">
+                <div class="course-img-lg" :class="item.bgClass">
+                  <span class="tag">精品课</span>
+                  <div class="course-text-lg">{{ item.title }}</div>
+                </div>
+                <div class="course-info-lg">
+                  <div class="course-name-lg">{{ item.name }}</div>
+                  <div class="course-author">{{ item.author }}</div>
+                  <div class="course-price">{{ item.price }}</div>
+                </div>
+              </div>
+            </div>
+          </van-list>
+        </div>
       </van-tab>
       <!-- 其他Tab -->
       <template #nav-right>
-         <div class="tab-filter">
-           <van-icon name="wap-nav" size="20" />
-         </div>
+        <div class="tab-filter">
+          <van-icon name="wap-nav" size="20" />
+        </div>
       </template>
     </van-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { getCourseList } from '@/api/knowledge';
+import type { MedicalCourseResponse } from '@/api/knowledge';
 
 const router = useRouter();
 const searchText = ref('');
@@ -143,6 +155,10 @@ const onClickLeft = () => {
   router.back();
 };
 
+const goToCourseList = () => {
+  router.push('/app/knowledge/list');
+};
+
 const gridItems = [
   { text: '临床必备', icon: 'hotel-o', color: '#5c9aff' },
   { text: '科研论文', icon: 'column', color: '#ffbd2d' },
@@ -150,19 +166,134 @@ const gridItems = [
   { text: '精选合集', icon: 'star-o', color: '#00c49f' },
   { text: '指南解读', icon: 'compass-o', color: '#00c49f' },
 ];
+interface NewItem {
+  id: number;
+  title: string;
+  name: string;
+  author: string;
+  price: string;
+  bgClass: string;
+}
+// 推荐区域暂时为空
+const recommendItems = ref<NewItem[]>([
+  { id: 1, title: '临床必备', name: '临床必备', author: '名医团队', price: '免费', bgClass: 'bg-green' },
+  { id: 2, title: '科研论文', name: '科研论文', author: '名医团队', price: '免费', bgClass: 'bg-orange' },
+  { id: 3, title: '外文课程', name: '外文课程', author: '名医团队', price: '免费', bgClass: 'bg-purple' },
+  { id: 4, title: '精选合集', name: '精选合集', author: '名医团队', price: '免费', bgClass: 'bg-dark-blue' },
+]);
 
-const recommendItems = [
-  { id: 1, title: '儿童肺炎支原体耐药特点与大环内酯的合理应用', name: '儿童肺炎支原体耐药特点与大环内酯的合...', price: '免费' },
-  { id: 2, title: '克拉霉素在小儿呼吸道感染中的应用', name: '克拉霉素在小儿呼吸道感染中的应用', price: '免费' },
-  { id: 3, title: '儿童社区获得性肺炎诊疗与规范', name: '儿童社区获得性肺炎诊疗与规范', price: '免费' },
-];
 
-const newItems = [
-  { id: 1, title: '青少年抑郁障碍的临床特征和治疗决策', name: '青少年抑郁障碍的临床特征和...', author: '张欣', price: '免费', bgClass: 'bg-green' },
-  { id: 2, title: '青少年情绪障碍病例分享', name: '青少年情绪障碍病例分享', author: '戚洪莉 | 主治医师', price: '免费', bgClass: 'bg-orange' },
-  { id: 3, title: '重回光明：15岁女生的疗愈之路', name: '重回光明：15岁女生的疗愈之路', author: '茅荣杰 | 副主任医师', price: '免费', bgClass: 'bg-purple' },
-  { id: 4, title: '青少年抑郁障碍的临床特征与治疗决策', name: '青少年抑郁障碍的临床特征与...', author: '赵鹏 教授 | 副主任医师', price: '免费', bgClass: 'bg-dark-blue' },
-];
+
+const newItems = ref<NewItem[]>([]);
+const deptCourses = ref<NewItem[]>([]);
+const deptLoading = ref(false);
+const listLoading = ref(false);
+const listFinished = ref(false);
+const cursorId = ref(0);
+
+const onTabChange = (index: number) => {
+  // index 0 是“推荐”Tab
+  if (index === 0) return;
+
+  // 重置状态
+  deptCourses.value = [];
+  cursorId.value = 0;
+  listFinished.value = false;
+  deptLoading.value = true;
+  listLoading.value = false;
+
+  // 立即加载第一页
+  onDeptLoad();
+};
+
+const onDeptLoad = async () => {
+  // 获取科室名称（departments 数组下标需减1，因为 Tab 0 是推荐）
+  const deptName = departments[activeTab.value - 1];
+  if (!deptName) {
+    deptLoading.value = false;
+    listLoading.value = false;
+    return;
+  }
+
+  try {
+    const res = await getCourseList({
+      id: cursorId.value,
+      medical_department: deptName,
+      limit: 10, // 每次加载10条
+      order_by: 'id'
+    });
+
+    if (res.data && res.data.code === 200) {
+      const data = res.data.data;
+      const courses = Array.isArray(data) ? data : (data as any).news || [];
+
+      const bgClasses = ['bg-green', 'bg-orange', 'bg-purple', 'bg-dark-blue'];
+      const newCourses = courses.map((course: any, idx: number) => ({
+        id: course.id,
+        title: course.course_name,
+        name: course.course_name,
+        author: course.applicable_title || '名医团队',
+        price: Number(course.price) === 0 ? '免费' : `¥${course.price}`,
+        bgClass: bgClasses[idx % bgClasses.length]
+      }));
+
+      if (newCourses.length > 0) {
+        deptCourses.value.push(...newCourses);
+        // 更新游标
+        cursorId.value = courses[courses.length - 1].id;
+      }
+
+      // 如果返回少于 limit，说明没有更多了
+      if (courses.length < 10) {
+        listFinished.value = true;
+      }
+    } else {
+      listFinished.value = true;
+    }
+  } catch (error) {
+    console.error(`加载${deptName}课程失败`, error);
+    listFinished.value = true;
+  } finally {
+    deptLoading.value = false;
+    listLoading.value = false;
+  }
+};
+
+const loadNewCourses = async () => {
+  try {
+    const res = await getCourseList({ limit: 4, order_by: '-created_time' });
+    // 注意：根据 request.ts 的封装，这里可能直接返回 data 或者 response
+    // 假设 request.post 返回的是 ResponseData<T>，其中 data 字段是 T
+    // 我们的 API 定义返回 ResponseData<{ news: MedicalCourseResponse[] }>
+    // 所以 res.data 是 { news: ... }
+    // 如果 request 拦截器直接返回 data.data，需要确认 utils/request
+    // 通常 axios 返回 response，response.data 是后端返回的 json
+    // 假设 utils/request 做了处理，我们先按标准 axios 响应处理，或者参考 home.ts
+    // home.ts: const res = await ...; if (res.data.code === 200) ...
+    // 所以 res 是 axios response对象
+    if (res.data && res.data.code === 200) {
+      const data = res.data.data;
+      // 兼容直接返回列表或返回对象包含news字段的情况
+      const courses = Array.isArray(data) ? data : (data as any).news || [];
+
+      const bgClasses = ['bg-green', 'bg-orange', 'bg-purple', 'bg-dark-blue'];
+      newItems.value = courses.map((course: any, index: number) => ({
+        id: course.id,
+        title: course.course_name,
+        name: course.course_name, // 暂时 title 和 name 用同一个
+        author: course.applicable_title || '名医团队',
+        price: Number(course.price) === 0 ? '免费' : `¥${course.price}`,
+        bgClass: bgClasses[index % bgClasses.length]
+      }));
+    }
+  } catch (error) {
+    console.error('加载课程失败', error);
+  }
+};
+
+onMounted(() => {
+  loadNewCourses();
+});
 
 const columnItems = [
   { id: 1, name: '国际临研', follow: 235, icon: 'cluster-o', color: '#1989fa' },
@@ -170,9 +301,25 @@ const columnItems = [
   { id: 3, name: '李主任', follow: 4, icon: 'manager', color: '#07c160' },
 ];
 
+const departments = [
+  '心内科', '呼吸内科', '消化内科', '神经内科',
+  '骨科', '妇产科', '儿科', '急诊科',
+  '内分泌科', '皮肤科'
+];
+
 </script>
 
 <style scoped>
+.loading-wrapper {
+  padding: 40px 0;
+  text-align: center;
+}
+
+.dept-content {
+  padding: 12px;
+  min-height: 200px;
+}
+
 .knowledge-bank {
   min-height: 100vh;
   background-color: #fff;
@@ -299,17 +446,36 @@ const columnItems = [
   text-align: center;
 }
 
-.bg-blue { background-color: #1989fa; color: white; }
-.bg-green { background-color: #07c160; color: white; }
-.bg-orange { background-color: #ff976a; color: white; }
-.bg-purple { background-color: #7232dd; color: white; }
-.bg-dark-blue { background-color: #0d47a1; color: white; }
+.bg-blue {
+  background-color: #1989fa;
+  color: white;
+}
+
+.bg-green {
+  background-color: #07c160;
+  color: white;
+}
+
+.bg-orange {
+  background-color: #ff976a;
+  color: white;
+}
+
+.bg-purple {
+  background-color: #7232dd;
+  color: white;
+}
+
+.bg-dark-blue {
+  background-color: #0d47a1;
+  color: white;
+}
 
 .tag {
   position: absolute;
   top: 0;
   left: 0;
-  background-color: rgba(255,255,255,0.2);
+  background-color: rgba(255, 255, 255, 0.2);
   font-size: 10px;
   padding: 2px 4px;
   border-bottom-right-radius: 6px;
