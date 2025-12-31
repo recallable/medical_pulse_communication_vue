@@ -70,7 +70,12 @@ const router = createRouter({
           path: 'certification/detail',
           name: 'CertificationDetail',
           component: () => import('@/views/app/certification/CertificationDetail.vue'),
-        }
+        },
+        {
+          path: 'knowledge/bank',
+          name: 'KnowledgeBank',
+          component: () => import('@/views/app/knowledge/KnowledgeBank.vue')
+        },
       ]
     },
     {

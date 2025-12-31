@@ -46,9 +46,38 @@
           <div class="grid-menu">
             <van-grid :column-num="5" :border="false">
               <van-grid-item v-for="item in gridItems" :key="item.text" :icon="item.icon" :text="item.text"
-                :icon-color="item.color" />
+                :icon-color="item.color" @click="handleGridItemClick(item)" />
             </van-grid>
           </div>
+
+          <!-- 医学工具抽屉 -->
+          <van-popup v-model:show="showTools" position="bottom" round closeable :style="{ height: '80%' }">
+            <div class="tools-drawer">
+              <div class="drawer-header">医学工具</div>
+              <div class="drawer-content">
+                <div v-for="(section, index) in toolsSections" :key="index" class="tool-section">
+                  <div v-if="section.title" class="section-title">{{ section.title }}</div>
+                  <van-grid :column-num="5" :border="false">
+                    <van-grid-item v-for="tool in section.items" :key="tool.text" :text="tool.text"
+                      @click="handleToolClick(tool)">
+                      <template #icon>
+                        <div class="tool-icon-wrapper">
+                          <van-badge v-if="tool.badge" :content="tool.badge" position="top-right">
+                            <div class="tool-icon" :style="{ backgroundColor: tool.bg || '#fff' }">
+                              <van-icon :name="tool.icon" :color="tool.color" size="24" />
+                            </div>
+                          </van-badge>
+                          <div v-else class="tool-icon" :style="{ backgroundColor: tool.bg || '#fff' }">
+                            <van-icon :name="tool.icon" :color="tool.color" size="24" />
+                          </div>
+                        </div>
+                      </template>
+                    </van-grid-item>
+                  </van-grid>
+                </div>
+              </div>
+            </div>
+          </van-popup>
 
           <!-- 今日早报 -->
           <div class="news-section">
@@ -94,7 +123,7 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { getArticleList } from '@/api/home';
 import type { Article } from '@/api/home';
-import { showToast } from 'vant';
+import { showToast, Popup, Badge, Grid, GridItem } from 'vant';
 
 const router = useRouter();
 const searchText = ref('');
@@ -103,10 +132,20 @@ const loading = ref(false);
 const finished = ref(false);
 const articleList = ref<Article[]>([]);
 const cursorId = ref(0);
+const showTools = ref(false);
+
+interface ToolItem {
+  text: string;
+  icon: string;
+  color: string;
+  action?: string;
+  bg?: string;
+  badge?: string;
+}
 
 const tabs = ['推荐', '发现', '最热', '资讯', '进展', '全科医疗', '儿科'];
 
-const gridItems = [
+const gridItems: ToolItem[] = [
   { text: 'e信使', icon: 'envelop-o', color: '#00c49f' },
   { text: '用药参考', icon: 'notes-o', color: '#5c9aff' },
   { text: '诊疗知识库', icon: 'bookmark-o', color: '#9a66ff' },
@@ -118,6 +157,70 @@ const gridItems = [
   { text: '麦粒任务', icon: 'todo-list-o', color: '#ff9800' },
   { text: '医学工具', icon: 'apps-o', color: '#00c49f' },
 ];
+
+const toolsSections: { title: string; items: ToolItem[] }[] = [
+  {
+    title: '常用工具',
+    items: [
+      { text: '知识银行', icon: 'gold-coin-o', color: '#ff9800', action: 'knowledge' },
+    ]
+  },
+  {
+    title: '指南用药',
+    items: [
+      { text: '指南解读', icon: 'orders-o', color: '#00c49f' },
+      { text: '每周更新', icon: 'replay', color: '#5c9aff' },
+      { text: '特殊人群', icon: 'friends-o', color: '#9a66ff' },
+      { text: '相互作用', icon: 'exchange', color: '#ff9800' },
+      { text: '配伍禁忌', icon: 'warn-o', color: '#5c9aff' },
+      { text: '抗菌谱', icon: 'shield-o', color: '#5c9aff' }
+    ]
+  },
+  {
+    title: '其他医学工具',
+    items: [
+      { text: '科普写作', icon: 'edit', color: '#ff5722', badge: '限免' },
+      { text: '医学公式', icon: 'bar-chart-o', color: '#5c9aff' },
+      { text: '罕见病助手', icon: 'like-o', color: '#00c49f' },
+      { text: '文献检索', icon: 'search', color: '#ff9800' },
+      { text: '医学检验', icon: 'aim', color: '#ff9800' },
+      { text: '医税顾问', icon: 'balance-o', color: '#5c9aff' },
+      { text: '选刊投稿', icon: 'todo-list-o', color: '#5c9aff' },
+      { text: '麦粒商城', icon: 'shop-o', color: '#ff9800' },
+      { text: '血糖管家', icon: 'fire-o', color: '#ff5722' }
+    ]
+  },
+  {
+    title: '平台内容',
+    items: [
+      { text: '知识银行', icon: 'gold-coin-o', color: '#ff9800', action: 'knowledge' },
+      { text: 'e研通', icon: 'chart-trending-o', color: '#5c9aff' },
+      { text: '专栏', icon: 'column', color: '#ff9800' },
+      { text: '进展', icon: 'upgrade', color: '#ff5722' },
+      { text: '业内新闻', icon: 'newspaper-o', color: '#5c9aff' },
+      { text: '病例', icon: 'records', color: '#ff5722' },
+      { text: '会议', icon: 'tv-o', color: '#9a66ff' },
+      { text: '圈子', icon: 'chat-o', color: '#00c49f' },
+      { text: 'e调研', icon: 'passed', color: '#9a66ff' }
+    ]
+  }
+];
+
+const handleGridItemClick = (item: ToolItem) => {
+  console.log('点击了:', item.text);
+  if (item.text === '医学工具') {
+    showTools.value = true;
+    console.log('显示工具抽屉:', showTools.value);
+  }
+};
+
+const handleToolClick = (tool: ToolItem) => {
+  if (tool.action === 'knowledge') {
+    router.push('/app/knowledge/bank');
+  } else {
+    showToast('功能开发中');
+  }
+};
 
 const goToAiChat = () => {
   router.push('/app/ai/chat');
@@ -387,5 +490,72 @@ const typeText = computed(() => {
   padding: 40px;
   text-align: center;
   color: #999;
+}
+
+/* 抽屉样式 */
+.tools-drawer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.drawer-header {
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  padding: 20px 0;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 0 20px 0;
+}
+
+.section-title {
+  padding: 0 16px;
+  font-size: 14px;
+  color: #333;
+  font-weight: bold;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.tool-section {
+  margin-bottom: 10px;
+}
+
+:deep(.van-grid-item__content) {
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+:deep(.van-grid-item__icon) {
+  margin-bottom: 8px !important;
+}
+
+:deep(.van-grid-item__text) {
+  margin-top: 0 !important;
+}
+
+.tool-icon-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tool-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* background-color: #f7f8fa; */
 }
 </style>
