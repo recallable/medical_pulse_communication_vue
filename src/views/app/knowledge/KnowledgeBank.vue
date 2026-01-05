@@ -46,21 +46,29 @@
             </van-grid-item>
           </van-grid>
 
-          <!-- 为您推荐 -->
-          <div class="section" v-if="recommendItems.length > 0">
+          <!-- 为你推荐 -->
+          <div class="section-container">
             <div class="section-header">
-              <span class="section-title">为您推荐</span>
-              <span class="section-more">更多 <van-icon name="arrow" /></span>
+              <span class="section-title">为你推荐</span>
+              <span class="section-more" @click="handleRefreshRec">
+                换一批 <van-icon name="replay" />
+              </span>
             </div>
-            <div class="horizontal-scroll">
-              <div class="course-card" v-for="item in recommendItems" :key="item.id">
-                <div class="course-img bg-blue">
-                  <span class="tag">精品课</span>
-                  <div class="course-text">{{ item.title }}</div>
+            <div class="recommend-grid">
+              <van-loading v-if="recLoading" class="rec-loading" vertical>加载推荐中...</van-loading>
+              <div v-else-if="recommendList.length === 0" class="empty-rec">暂无推荐，快去浏览课程吧</div>
+              <div v-else class="course-card" v-for="item in recommendList" :key="item.course_id"
+                @click="handleRecClick(item.course_id)">
+                <div class="course-img-sm">
+                  <span class="tag-rec" v-if="item.recommendation_reason">{{ item.recommendation_reason }}</span>
                 </div>
-                <div class="course-info">
-                  <div class="course-name">{{ item.name }}</div>
-                  <div class="course-price">{{ item.price }}</div>
+                <div class="course-info-sm">
+                  <div class="course-name-sm">{{ item.course_name }}</div>
+                  <div class="course-meta-sm">
+                    <span class="dept-tag">{{ item.medical_department }}</span>
+                    <span class="level-tag">{{ difficultyMap[item.difficulty_level] || '通用' }}</span>
+                  </div>
+                  <div class="course-price-sm">¥{{ item.price }}</div>
                 </div>
               </div>
             </div>
@@ -73,7 +81,7 @@
               <span class="section-more" @click="goToCourseList">更多 <van-icon name="arrow" /></span>
             </div>
             <div class="grid-layout">
-              <div class="course-card-lg" v-for="item in newItems" :key="item.id">
+              <div class="course-card-lg" v-for="item in newItems" :key="item.id" @click="handleCourseClick(item.id)">
                 <div class="course-img-lg" :class="item.bgClass">
                   <span class="tag">精品课</span>
                   <div class="course-text-lg">{{ item.title }}</div>
@@ -116,7 +124,8 @@
             <van-loading v-if="deptLoading" size="24px" vertical class="loading-wrapper">加载中...</van-loading>
             <div v-else-if="deptCourses.length === 0 && !listLoading" class="empty-placeholder">暂无{{ dept }}相关课程</div>
             <div v-else class="grid-layout">
-              <div class="course-card-lg" v-for="item in deptCourses" :key="item.id">
+              <div class="course-card-lg" v-for="item in deptCourses" :key="item.id"
+                @click="handleCourseClick(item.id)">
                 <div class="course-img-lg" :class="item.bgClass">
                   <span class="tag">精品课</span>
                   <div class="course-text-lg">{{ item.title }}</div>
@@ -146,8 +155,11 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getCourseList } from '@/api/knowledge';
 import type { MedicalCourseResponse } from '@/api/knowledge';
+import { useRecommendation } from '@/composables/useRecommendation';
 
 const router = useRouter();
+const { recommendList, loading: recLoading, loadRecommendations, refreshRecommendations, trackAction } = useRecommendation();
+
 const searchText = ref('');
 const activeTab = ref(0);
 
@@ -166,6 +178,36 @@ const gridItems = [
   { text: '精选合集', icon: 'star-o', color: '#00c49f' },
   { text: '指南解读', icon: 'compass-o', color: '#00c49f' },
 ];
+
+// 难度等级映射
+const difficultyMap: Record<number, string> = {
+  1: '入门',
+  2: '进阶',
+  3: '高阶',
+  4: '专家'
+};
+
+const handleRecClick = (id: number) => {
+  trackAction(id, 'view'); // 点击时埋点 view
+  // 实际跳转逻辑，暂用 Toast 模拟或跳转到详情页
+  // router.push(`/app/knowledge/course/${id}`);
+};
+
+const handleCourseClick = (courseId: number) => {
+  trackAction(courseId, 'view'); // 点击时埋点 view
+  // 跳转详情页
+  // router.push(`/app/knowledge/course/${courseId}`);
+};
+
+const handleRefreshRec = () => {
+  refreshRecommendations();
+};
+
+onMounted(() => {
+  loadNewCourses();
+  loadRecommendations(); // 加载推荐
+});
+
 interface NewItem {
   id: number;
   title: string;
@@ -507,6 +549,93 @@ const departments = [
 }
 
 /* Grid Layout for New Items */
+.recommend-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.rec-loading {
+  grid-column: span 2;
+  padding: 20px 0;
+}
+
+.empty-rec {
+  grid-column: span 2;
+  text-align: center;
+  color: #999;
+  padding: 20px 0;
+  font-size: 14px;
+}
+
+.course-card {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.course-img-sm {
+  height: 80px;
+  background: #eef2f7;
+  position: relative;
+  border-radius: 8px 8px 0 0;
+}
+
+.tag-rec {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: #ff976a;
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px 0 8px 0;
+}
+
+.course-info-sm {
+  padding: 8px;
+}
+
+.course-name-sm {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.course-meta-sm {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.dept-tag,
+.level-tag {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.dept-tag {
+  background: #e8f4ff;
+  color: #1989fa;
+}
+
+.level-tag {
+  background: #fdf6ec;
+  color: #e6a23c;
+}
+
+.course-price-sm {
+  font-size: 14px;
+  color: #ff502c;
+  font-weight: bold;
+}
+
 .grid-layout {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

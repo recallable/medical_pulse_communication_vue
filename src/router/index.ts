@@ -44,7 +44,7 @@ const router = createRouter({
         {
           path: 'case',
           name: 'AppCase',
-          component: () => import('@/views/app/home/Home.vue'), // 暂时复用Home
+          component: () => import('@/views/app/case/CaseLibrary.vue'),
         },
         {
           path: 'guide',
