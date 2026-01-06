@@ -93,15 +93,22 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { showToast, showSuccessToast } from 'vant';
+import { showToast, showSuccessToast, showFailToast } from 'vant';
 import { useRecommendation } from '@/composables/useRecommendation';
+import { createOrder } from '@/api/order';
 
 const route = useRoute();
 const router = useRouter();
 const { trackAction } = useRecommendation();
 
+// State variables
 const paymentMethod = ref('wechat');
 const useGrain = ref(true);
+const loading = ref(false);
+const idempotencyKey = ref('');
+
+// Constants
+const STORAGE_KEY_PREFIX = 'checkout_idempotency_key_';
 
 const courseInfo = ref({
   courseId: Number(route.query.courseId) || 0,
@@ -112,34 +119,105 @@ const courseInfo = ref({
 });
 
 const finalPrice = computed(() => {
-  // Logic to deduct grain if needed, for now simple
+  // Logic to deduct grain if needed. For now, we assume simple deduction logic or just display price.
+  // In a real scenario, you'd calculate this based on grain balance.
   return courseInfo.value.price;
 });
+
+/**
+ * Generate a UUID v4
+ * Falls back to a random string if crypto is not available
+ */
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+/**
+ * Initialize Idempotency Key
+ * Checks sessionStorage first to handle page refreshes (Persistence)
+ */
+const initIdempotencyKey = () => {
+  const storageKey = `${STORAGE_KEY_PREFIX}${courseInfo.value.courseId}`;
+  const storedKey = sessionStorage.getItem(storageKey);
+
+  if (storedKey) {
+    idempotencyKey.value = storedKey;
+    console.log('Restored idempotency key from session:', storedKey);
+  } else {
+    const newKey = generateUUID();
+    idempotencyKey.value = newKey;
+    sessionStorage.setItem(storageKey, newKey);
+    console.log('Generated new idempotency key:', newKey);
+  }
+};
 
 const onClickLeft = () => {
   router.back();
 };
 
-const handlePay = () => {
-  showToast({
-    type: 'loading',
-    message: '正在处理支付...',
-    forbidClick: true,
-    duration: 1500
-  });
+/**
+ * Create Order Function
+ * Implements robust idempotency and error handling
+ */
+const handlePay = async () => {
+  if (loading.value) return;
 
-  setTimeout(() => {
-    trackAction(courseInfo.value.courseId, 'purchase');
-    showSuccessToast('支付成功');
-    // Navigate back or to a success page/my courses
-    setTimeout(() => {
-      router.go(-1);
-    }, 1000);
-  }, 1500);
+  // Basic validation
+  if (!courseInfo.value.courseId) {
+    showFailToast('课程信息缺失');
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    // API Request with Idempotency-Key header
+    const response = await createOrder({
+      course_id: courseInfo.value.courseId,
+      payment_method: paymentMethod.value,
+      use_grain: useGrain.value,
+      amount: finalPrice.value
+    }, idempotencyKey.value);
+
+    if (response.data.code === 200) {
+      // Success Flow
+      showSuccessToast('支付成功');
+
+      // Track the purchase action
+      trackAction(courseInfo.value.courseId, 'purchase', finalPrice.value);
+
+      // Remove the key from sessionStorage to prevent reuse for a new order
+      const storageKey = `${STORAGE_KEY_PREFIX}${courseInfo.value.courseId}`;
+      sessionStorage.removeItem(storageKey);
+
+      // Navigate to success page or course detail
+      // In a real app, you might redirect to an order status page
+      setTimeout(() => {
+        router.go(-1); // Or router.push('/order/success')
+      }, 1000);
+    } else {
+      // Handle business errors (e.g., inventory issues, logic errors)
+      showFailToast(response.data.message || '支付失败');
+      // We do NOT clear the key here, allowing the user to retry with the same key if it was a transient failure
+    }
+  } catch (error) {
+    // Error Flow (Network error, timeout, etc.)
+    console.error('Create order error:', error);
+    showFailToast('网络请求失败，请重试');
+    // DO NOT clear or regenerate the key. Keep the same UUID to allow safe retries.
+  } finally {
+    loading.value = false;
+  }
 };
 
 onMounted(() => {
-
+  initIdempotencyKey();
 });
 </script>
 
