@@ -54,7 +54,7 @@ const onClickLeft = () => {
 };
 
 const goToDetail = (id: number) => {
-  showToast(`课程详情ID: ${id}`);
+  router.push(`/app/knowledge/course/${id}`);
 };
 
 const onLoad = async () => {

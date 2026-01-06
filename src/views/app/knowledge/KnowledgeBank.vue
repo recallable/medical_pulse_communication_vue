@@ -189,14 +189,12 @@ const difficultyMap: Record<number, string> = {
 
 const handleRecClick = (id: number) => {
   trackAction(id, 'view'); // 点击时埋点 view
-  // 实际跳转逻辑，暂用 Toast 模拟或跳转到详情页
-  // router.push(`/app/knowledge/course/${id}`);
+  router.push(`/app/knowledge/course/${id}`);
 };
 
 const handleCourseClick = (courseId: number) => {
   trackAction(courseId, 'view'); // 点击时埋点 view
-  // 跳转详情页
-  // router.push(`/app/knowledge/course/${courseId}`);
+  router.push(`/app/knowledge/course/${courseId}`);
 };
 
 const handleRefreshRec = () => {

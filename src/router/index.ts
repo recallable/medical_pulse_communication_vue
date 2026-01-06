@@ -81,6 +81,16 @@ const router = createRouter({
           name: 'CourseList',
           component: () => import('@/views/app/knowledge/CourseList.vue')
         },
+        {
+          path: 'knowledge/course/:id',
+          name: 'CourseDetail',
+          component: () => import('@/views/app/knowledge/CourseDetail.vue')
+        },
+        {
+          path: 'knowledge/checkout',
+          name: 'CourseCheckout',
+          component: () => import('@/views/app/knowledge/CourseCheckout.vue')
+        },
       ]
     },
     {
