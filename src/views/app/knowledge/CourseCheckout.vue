@@ -30,7 +30,7 @@
 
       <van-radio-group v-model="paymentMethod">
         <van-cell-group>
-          <van-cell clickable @click="paymentMethod = 'wechat'">
+          <van-cell clickable @click="paymentMethod = PaymentMethod.WECHAT">
             <template #title>
               <div class="pay-method-title">
                 <van-icon name="wechat" color="#07c160" size="24" class="mr-2" />
@@ -38,11 +38,11 @@
               </div>
             </template>
             <template #right-icon>
-              <van-radio name="wechat" />
+              <van-radio :name="PaymentMethod.WECHAT" />
             </template>
           </van-cell>
 
-          <van-cell clickable @click="paymentMethod = 'alipay'">
+          <van-cell clickable @click="paymentMethod = PaymentMethod.ALIPAY">
             <template #title>
               <div class="pay-method-title">
                 <van-icon name="alipay" color="#1989fa" size="24" class="mr-2" />
@@ -50,7 +50,7 @@
               </div>
             </template>
             <template #right-icon>
-              <van-radio name="alipay" />
+              <van-radio :name="PaymentMethod.ALIPAY" />
             </template>
           </van-cell>
         </van-cell-group>
@@ -85,26 +85,45 @@
         <span class="amount">{{ finalPrice }}元</span>
         <span class="grain-info" v-if="useGrain">(麦粒支付¥0)</span>
       </div>
-      <div class="confirm-btn" @click="handlePay">确认支付</div>
+      <div class="confirm-btn" :class="{ 'disabled': loading }" @click="handlePayClick">
+        {{ loading ? '处理中...' : '确认支付' }}
+      </div>
     </div>
+
+    <!-- WeChat QR Code Popup -->
+    <van-popup v-model:show="showQRCode" :close-on-click-overlay="false" round @closed="closePayment">
+      <div class="qr-popup-content">
+        <div class="qr-title">微信扫码支付</div>
+        <div class="qr-code-box">
+          <img :src="qrCodeUrl" alt="WeChat Pay QR Code" class="qr-img" />
+        </div>
+        <div class="qr-tip">
+          请使用微信“扫一扫”完成支付
+        </div>
+        <div class="qr-close" @click="closePayment">
+          <van-icon name="cross" size="24" color="#999" />
+        </div>
+      </div>
+    </van-popup>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { showToast, showSuccessToast, showFailToast } from 'vant';
+import { showFailToast } from 'vant';
 import { useRecommendation } from '@/composables/useRecommendation';
-import { createOrder } from '@/api/order';
+import { usePayment } from '@/composables/usePayment';
+import { PaymentMethod } from '@/api/order';
 
 const route = useRoute();
 const router = useRouter();
 const { trackAction } = useRecommendation();
+const { loading, showQRCode, qrCodeUrl, handlePayment, closePayment } = usePayment();
 
 // State variables
-const paymentMethod = ref('wechat');
+const paymentMethod = ref(PaymentMethod.WECHAT);
 const useGrain = ref(true);
-const loading = ref(false);
 const idempotencyKey = ref('');
 
 // Constants
@@ -119,14 +138,11 @@ const courseInfo = ref({
 });
 
 const finalPrice = computed(() => {
-  // Logic to deduct grain if needed. For now, we assume simple deduction logic or just display price.
-  // In a real scenario, you'd calculate this based on grain balance.
   return courseInfo.value.price;
 });
 
 /**
  * Generate a UUID v4
- * Falls back to a random string if crypto is not available
  */
 const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -140,7 +156,6 @@ const generateUUID = (): string => {
 
 /**
  * Initialize Idempotency Key
- * Checks sessionStorage first to handle page refreshes (Persistence)
  */
 const initIdempotencyKey = () => {
   const storageKey = `${STORAGE_KEY_PREFIX}${courseInfo.value.courseId}`;
@@ -148,12 +163,10 @@ const initIdempotencyKey = () => {
 
   if (storedKey) {
     idempotencyKey.value = storedKey;
-    console.log('Restored idempotency key from session:', storedKey);
   } else {
     const newKey = generateUUID();
     idempotencyKey.value = newKey;
     sessionStorage.setItem(storageKey, newKey);
-    console.log('Generated new idempotency key:', newKey);
   }
 };
 
@@ -161,59 +174,32 @@ const onClickLeft = () => {
   router.back();
 };
 
-/**
- * Create Order Function
- * Implements robust idempotency and error handling
- */
-const handlePay = async () => {
-  if (loading.value) return;
+const onPaymentSuccess = () => {
+  // Track purchase
+  trackAction(courseInfo.value.courseId, 'purchase', finalPrice.value);
 
-  // Basic validation
+  // Clear idempotency key
+  const storageKey = `${STORAGE_KEY_PREFIX}${courseInfo.value.courseId}`;
+  sessionStorage.removeItem(storageKey);
+
+  // Navigate back
+  setTimeout(() => {
+    router.go(-1);
+  }, 1000);
+};
+
+const handlePayClick = () => {
   if (!courseInfo.value.courseId) {
     showFailToast('课程信息缺失');
     return;
   }
 
-  loading.value = true;
-
-  try {
-    // API Request with Idempotency-Key header
-    const response = await createOrder({
-      course_id: courseInfo.value.courseId,
-      payment_method: paymentMethod.value,
-      use_grain: useGrain.value,
-      amount: finalPrice.value
-    }, idempotencyKey.value);
-
-    if (response.data.code === 200) {
-      // Success Flow
-      showSuccessToast('支付成功');
-
-      // Track the purchase action
-      trackAction(courseInfo.value.courseId, 'purchase', finalPrice.value);
-
-      // Remove the key from sessionStorage to prevent reuse for a new order
-      const storageKey = `${STORAGE_KEY_PREFIX}${courseInfo.value.courseId}`;
-      sessionStorage.removeItem(storageKey);
-
-      // Navigate to success page or course detail
-      // In a real app, you might redirect to an order status page
-      setTimeout(() => {
-        router.go(-1); // Or router.push('/order/success')
-      }, 1000);
-    } else {
-      // Handle business errors (e.g., inventory issues, logic errors)
-      showFailToast(response.data.message || '支付失败');
-      // We do NOT clear the key here, allowing the user to retry with the same key if it was a transient failure
-    }
-  } catch (error) {
-    // Error Flow (Network error, timeout, etc.)
-    console.error('Create order error:', error);
-    showFailToast('网络请求失败，请重试');
-    // DO NOT clear or regenerate the key. Keep the same UUID to allow safe retries.
-  } finally {
-    loading.value = false;
-  }
+  handlePayment({
+    course_id: courseInfo.value.courseId,
+    payment_method: paymentMethod.value,
+    use_grain: useGrain.value,
+    amount: finalPrice.value
+  }, idempotencyKey.value, onPaymentSuccess);
 };
 
 onMounted(() => {
@@ -380,5 +366,59 @@ onMounted(() => {
   border-radius: 4px;
   font-size: 16px;
   font-weight: bold;
+  cursor: pointer;
+}
+
+.confirm-btn.disabled {
+  background: #a0cfff;
+  cursor: not-allowed;
+}
+
+/* QR Popup Styles */
+.qr-popup-content {
+  width: 300px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  border-radius: 12px;
+  position: relative;
+}
+
+.qr-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.qr-code-box {
+  width: 200px;
+  height: 200px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.qr-tip {
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+}
+
+.qr-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  cursor: pointer;
+  padding: 4px;
 }
 </style>

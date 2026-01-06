@@ -51,27 +51,21 @@
           </div>
 
           <!-- 医学工具抽屉 -->
-          <van-popup v-model:show="showTools" position="bottom" round closeable :style="{ height: '80%' }">
+          <van-popup v-model:show="showTools" position="bottom" round closeable :style="{ height: '75%' }">
             <div class="tools-drawer">
               <div class="drawer-header">医学工具</div>
               <div class="drawer-content">
                 <div v-for="(section, index) in toolsSections" :key="index" class="tool-section">
                   <div v-if="section.title" class="section-title">{{ section.title }}</div>
-                  <van-grid :column-num="5" :border="false">
-                    <van-grid-item v-for="tool in section.items" :key="tool.text" :text="tool.text"
-                      @click="handleToolClick(tool)">
-                      <template #icon>
-                        <div class="tool-icon-wrapper">
-                          <van-badge v-if="tool.badge" :content="tool.badge" position="top-right">
-                            <div class="tool-icon" :style="{ backgroundColor: tool.bg || '#fff' }">
-                              <van-icon :name="tool.icon" :color="tool.color" size="24" />
-                            </div>
-                          </van-badge>
-                          <div v-else class="tool-icon" :style="{ backgroundColor: tool.bg || '#fff' }">
-                            <van-icon :name="tool.icon" :color="tool.color" size="24" />
-                          </div>
+                  <van-grid :column-num="5" :border="false" clickable>
+                    <van-grid-item v-for="tool in section.items" :key="tool.text" @click="handleToolClick(tool)">
+                      <div class="tool-item-custom">
+                        <div class="tool-icon-box" :style="{ backgroundColor: 'transparent' }">
+                          <van-icon :name="tool.icon" :color="tool.color" size="32" />
                         </div>
-                      </template>
+                        <div class="tool-name">{{ tool.text }}</div>
+                        <div class="tool-badge" v-if="tool.badge">{{ tool.badge }}</div>
+                      </div>
                     </van-grid-item>
                   </van-grid>
                 </div>
@@ -160,9 +154,10 @@ const gridItems: ToolItem[] = [
 
 const toolsSections: { title: string; items: ToolItem[] }[] = [
   {
-    title: '常用工具',
+    title: '最近使用',
     items: [
       { text: '知识银行', icon: 'gold-coin-o', color: '#ff9800', action: 'knowledge' },
+      { text: '文献检索', icon: 'search', color: '#ff9800' }
     ]
   },
   {
@@ -547,6 +542,52 @@ const typeText = computed(() => {
   justify-content: center;
   align-items: center;
   margin-bottom: 8px;
+}
+
+.tool-item-custom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+
+.tool-icon-box {
+  width: 48px;
+  height: 48px;
+  /* border-radius: 16px; */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  transition: all 0.2s;
+}
+
+.tool-item-custom:active .tool-icon-box {
+  transform: scale(0.95);
+  opacity: 0.8;
+}
+
+.tool-name {
+  font-size: 11px;
+  color: #333;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.tool-badge {
+  position: absolute;
+  top: -6px;
+  right: 12px;
+  /* Adjust based on icon size and column width */
+  background: #ff5722;
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px 8px 8px 0;
+  transform: scale(0.9);
+  box-shadow: 0 2px 4px rgba(255, 87, 34, 0.2);
 }
 
 .tool-icon {

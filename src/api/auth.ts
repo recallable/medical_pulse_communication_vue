@@ -24,3 +24,14 @@ export const dingTalkLogin = (data: { code: string }) => {
         code: data.code
     })
 }
+
+/**
+ * 刷新 Token
+ * @param refreshToken 刷新令牌
+ * @returns 新的 Token 数据
+ */
+export const refreshToken = (refreshToken: string) => {
+    return api.post('/api/v1/user/refresh-token', {
+        refresh_token: refreshToken
+    })
+}

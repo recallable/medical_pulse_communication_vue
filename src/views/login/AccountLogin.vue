@@ -155,6 +155,7 @@ const handleLogin = async () => {
 				// 保存token
 				if (response.data.data && response.data.data.token) {
 					localStorage.setItem('token', response.data.data.token.access_token)
+					localStorage.setItem('refresh_token', response.data.data.token.refresh_token)
 					localStorage.setItem('userInfo', JSON.stringify(response.data.data.user))
 
 					// 记住密码

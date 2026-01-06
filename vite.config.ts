@@ -34,5 +34,9 @@ export default defineConfig({
                 rewrite: (path) => path.replace(/^\/api/, '')
             }
         }
+    },
+    // Force dependency optimization for qrcode
+    optimizeDeps: {
+        include: ['qrcode']
     }
 })
