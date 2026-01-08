@@ -65,28 +65,7 @@
                     </div>
                 </van-tab>
                 <van-tab title="评价">
-                    <div class="tab-content reviews">
-                        <div class="review-item">
-                            <div class="review-user">
-                                <van-image round width="30" height="30"
-                                    src="https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg" />
-                                <span class="username">张医生</span>
-                                <van-rate :model-value="5" size="12" readonly />
-                            </div>
-                            <div class="review-text">非常实用的课程，老师讲得很透彻！</div>
-                            <div class="review-date">2025-01-05</div>
-                        </div>
-                        <div class="review-item">
-                            <div class="review-user">
-                                <van-image round width="30" height="30"
-                                    src="https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg" />
-                                <span class="username">李医生</span>
-                                <van-rate :model-value="4" size="12" readonly />
-                            </div>
-                            <div class="review-text">内容详实，如果有更多实操视频就更好了。</div>
-                            <div class="review-date">2025-01-04</div>
-                        </div>
-                    </div>
+                    <CourseComment :course-id="courseId" />
                 </van-tab>
             </van-tabs>
         </div>
@@ -102,7 +81,7 @@
                 <span class="action-text">收藏</span>
             </div>
             <div class="action-button" @click="handlePurchase">
-                <span>立即购买</span>
+                <span>{{ isPurchased ? '立即学习' : '立即购买' }}</span>
             </div>
         </div>
     </div>
@@ -115,13 +94,14 @@ import { getCourseDetail } from '@/api/knowledge';
 import type { CourseDetailResponse } from '@/api/knowledge';
 import { useRecommendation } from '@/composables/useRecommendation';
 import { showToast } from 'vant';
+import CourseComment from './components/CourseComment.vue';
 
 const route = useRoute();
 const router = useRouter();
 const { trackAction } = useRecommendation();
 
 const loading = ref(true);
-const detail = ref<CourseDetailResponse | null>(null);
+const detail = ref<CourseDetailResponse['course_detail'] | null>(null);
 const activeTab = ref(0);
 const isFavorited = ref(false);
 
@@ -131,11 +111,14 @@ const onClickLeft = () => {
     router.back();
 };
 
+const isPurchased = ref(false);
+
 const fetchDetail = async () => {
     try {
         const res = await getCourseDetail(courseId);
         if (res.data.code === 200) {
-            detail.value = res.data.data;
+            detail.value = res.data.data.course_detail;
+            isPurchased.value = res.data.data.exist;
         }
     } catch (error) {
         console.error(error);
@@ -160,11 +143,21 @@ const handleConsult = (): void => {
     showToast('正在跳转至咨询页面...');
 };
 
+const handleStudy = () => {
+    // 跳转到学习页面或播放页面
+    showToast('跳转到学习页面');
+};
+
 /**
  * 处理购买按钮点击
  */
 const handlePurchase = (): void => {
     if (!detail.value) return;
+
+    if (isPurchased.value) {
+        handleStudy();
+        return;
+    }
 
     router.push({
         path: '/app/knowledge/checkout',
